@@ -2,7 +2,13 @@ import requests
 import time
 import uuid
 import random
+import logging
 
+# Configure logging
+logging.basicConfig(filename='api_errors.log', level=logging.ERROR,
+                    format='%(asctime)s - %(message)s')
+
+# Color constants
 MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 YELLOW = "\033[33m"
@@ -12,6 +18,7 @@ BOLD = "\033[1m"
 UNDERLINE = "\033[4m"
 RESET = "\033[0m"
 
+# ASCII art and banner
 ascii_banner = f"""
 {CYAN}    
 ______                  _      ___                       
@@ -39,6 +46,7 @@ print(f"{GREEN}{BOLD}{UNDERLINE}Telegram: https://t.me/forestarmy{RESET}")
 print(f"{RED}{BOLD}{UNDERLINE}YouTube: https://youtube.com/forestarmy{RESET}")
 print(f"{MAGENTA}{'=' * 70}{RESET}")
 
+# Function to send API request
 def send_request(available_taps, count, token):
     url = 'https://api-gw.geagle.online/tap'
     headers = {
@@ -65,15 +73,31 @@ def send_request(available_taps, count, token):
         "timestamp": timestamp,
         "salt": salt
     }
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        print(f"Status Code: {response.status_code}, Response Text: {response.text}")
+        response.raise_for_status()  # Raise HTTP errors
+        try:
+            return response.json()  # Parse JSON
+        except ValueError:
+            error_msg = f"Error: Response is not valid JSON. Response: {response.text}"
+            print(error_msg)
+            logging.error(error_msg)
+            return {"error": "Invalid JSON", "raw_response": response.text}
+    except requests.exceptions.RequestException as e:
+        error_msg = f"Request failed: {e}"
+        print(error_msg)
+        logging.error(error_msg)
+        return {"error": str(e)}
 
+# Load tokens from file
 with open('data.txt', 'r') as file:
     tokens = [line.strip() for line in file.readlines()]
 
 available_taps = 1000
 total_requests = 0
 
+# Main loop
 while True:
     for token in tokens:
         count = random.randint(240, 270)
